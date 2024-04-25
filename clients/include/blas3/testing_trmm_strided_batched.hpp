@@ -1,5 +1,5 @@
 /* ************************************************************************
- * Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,20 +89,22 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
             zero = zero_d;
         }
 
-        hipblasStride strideA = lda * K;
-        hipblasStride strideB = ldb * N;
-        hipblasStride strideC = ldc * N;
-        size_t        A_size  = strideA * batch_count;
-        size_t        B_size  = strideB * batch_count;
+        hipblasStride stride_A   = lda * K;
+        hipblasStride stride_B   = ldb * N;
+        hipblasStride stride_C   = ldc * N;
+        hipblasStride stride_out = inplace ? stride_B : stride_C;
 
-        size_t C_size = inplace ? 1 : strideC * batch_count;
+        // Allocate device memory
+        device_strided_batch_matrix<T> dA(K, K, lda, stride_A, batch_count);
+        device_strided_batch_matrix<T> dB(M, N, ldb, stride_B, batch_count);
 
-        device_vector<T> dA(A_size);
-        device_vector<T> dB(B_size);
-        device_vector<T> dC(C_size);
+        int64_t dC_M   = inplace ? 1 : M;
+        int64_t dC_N   = inplace ? 1 : N;
+        int64_t dC_ldc = inplace ? 1 : ldc;
 
-        device_vector<T>* dOut      = inplace ? &dB : &dC;
-        hipblasStride     strideOut = inplace ? strideB : strideC;
+        device_strided_batch_matrix<T> dC(dC_M, dC_N, dC_ldc, stride_C, batch_count);
+
+        device_strided_batch_matrix<T>* dOut = inplace ? &dB : &dC;
 
         // invalid enums
         EXPECT_HIPBLAS_STATUS(hipblasTrmmStridedBatchedFn(handle,
@@ -115,13 +117,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -134,14 +136,14 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           N,
                                                           alpha,
                                                           dA,
-                                                          strideA,
+                                                          stride_A,
                                                           lda,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -155,13 +157,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_ENUM);
 
@@ -175,13 +177,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_ENUM);
 
@@ -196,13 +198,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_NOT_INITIALIZED);
 
@@ -216,13 +218,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           nullptr,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -236,33 +238,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           nullptr,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
-                                                          batch_count),
-                              HIPBLAS_STATUS_INVALID_VALUE);
-
-        EXPECT_HIPBLAS_STATUS(hipblasTrmmStridedBatchedFn(handle,
-                                                          side,
-                                                          uplo,
-                                                          transA,
-                                                          diag,
-                                                          M,
-                                                          N,
-                                                          alpha,
-                                                          dA,
-                                                          lda,
-                                                          strideA,
-                                                          nullptr,
-                                                          ldb,
-                                                          strideB,
-                                                          *dOut,
-                                                          ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -276,13 +258,33 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
+                                                          nullptr,
+                                                          ldb,
+                                                          stride_B,
+                                                          *dOut,
+                                                          ldOut,
+                                                          stride_out,
+                                                          batch_count),
+                              HIPBLAS_STATUS_INVALID_VALUE);
+
+        EXPECT_HIPBLAS_STATUS(hipblasTrmmStridedBatchedFn(handle,
+                                                          side,
+                                                          uplo,
+                                                          transA,
+                                                          diag,
+                                                          M,
+                                                          N,
+                                                          alpha,
+                                                          dA,
+                                                          lda,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           nullptr,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -297,13 +299,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           zero,
                                                           nullptr,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           nullptr,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           *dOut,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_SUCCESS);
 
@@ -318,13 +320,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           nullptr,
                                                           nullptr,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           nullptr,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           nullptr,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_SUCCESS);
 
@@ -339,13 +341,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           nullptr,
                                                           nullptr,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           nullptr,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           nullptr,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           batch_count),
                               HIPBLAS_STATUS_SUCCESS);
 
@@ -360,13 +362,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                           nullptr,
                                                           nullptr,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           nullptr,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           nullptr,
                                                           ldOut,
-                                                          strideOut,
+                                                          stride_out,
                                                           0),
                               HIPBLAS_STATUS_SUCCESS);
 
@@ -384,13 +386,13 @@ void testing_trmm_strided_batched_bad_arg(const Arguments& arg)
                                                               alpha,
                                                               dA,
                                                               lda,
-                                                              strideA,
+                                                              stride_A,
                                                               dB,
                                                               ldb,
-                                                              strideB,
+                                                              stride_B,
                                                               *dOut,
                                                               ldb + 1,
-                                                              strideOut,
+                                                              stride_out,
                                                               batch_count),
                                   HIPBLAS_STATUS_INVALID_VALUE);
         }
@@ -423,15 +425,10 @@ void testing_trmm_strided_batched(const Arguments& arg)
     hipblasStatus_t status = HIPBLAS_STATUS_SUCCESS;
 
     int           K          = (side == HIPBLAS_SIDE_LEFT ? M : N);
-    hipblasStride stride_A   = size_t(lda) * K * stride_scale;
-    hipblasStride stride_B   = size_t(ldb) * N * stride_scale;
-    hipblasStride stride_C   = inplace ? 1 : size_t(ldc) * N * stride_scale;
+    hipblasStride stride_A   = lda * K * stride_scale;
+    hipblasStride stride_B   = ldb * N * stride_scale;
+    hipblasStride stride_C   = inplace ? 1 : ldc * N * stride_scale;
     hipblasStride stride_out = inplace ? stride_B : stride_C;
-
-    size_t A_size   = stride_A * batch_count;
-    size_t B_size   = stride_B * batch_count;
-    size_t C_size   = stride_C * batch_count;
-    size_t out_size = stride_out * batch_count;
 
     // argument sanity check, quick return if input parameters are invalid before allocating invalid
     // memory
@@ -440,43 +437,61 @@ void testing_trmm_strided_batched(const Arguments& arg)
         return;
     }
 
-    // Naming: dK is in GPU (device) memory. hK is in CPU (host) memory
-    host_vector<T> hA(A_size);
-    host_vector<T> hB(B_size);
-    host_vector<T> hC(C_size);
+    // Naming: `h` is in CPU (host) memory(eg hA), `d` is in GPU (device) memory (eg dA).
+    // Allocate host memory
+    host_strided_batch_matrix<T> hA(K, K, lda, stride_A, batch_count);
+    host_strided_batch_matrix<T> hB(M, N, ldb, stride_B, batch_count);
+    host_strided_batch_matrix<T> hC
+        = (inplace) ? host_strided_batch_matrix<T>(1, 1, 1, 1, 1)
+                    : host_strided_batch_matrix<T>(M, N, ldc, stride_C, batch_count);
+    host_strided_batch_matrix<T> hOut_host(M, N, ldOut, stride_out, batch_count);
+    host_strided_batch_matrix<T> hOut_device(M, N, ldOut, stride_out, batch_count);
+    host_strided_batch_matrix<T> hOut_cpu(M, N, ldOut, stride_out, batch_count);
 
-    host_vector<T> hOut_host(out_size);
-    host_vector<T> hOut_device(out_size);
-    host_vector<T> hOut_gold(out_size);
+    // Check host memory allocation
+    CHECK_HIP_ERROR(hA.memcheck());
+    CHECK_HIP_ERROR(hB.memcheck());
+    CHECK_HIP_ERROR(hC.memcheck());
+    CHECK_HIP_ERROR(hOut_host.memcheck());
+    CHECK_HIP_ERROR(hOut_device.memcheck());
+    CHECK_HIP_ERROR(hOut_cpu.memcheck());
 
-    device_vector<T> dA(A_size);
-    device_vector<T> dB(B_size);
-    device_vector<T> dC(C_size);
+    // Allocate device memory
+    device_strided_batch_matrix<T> dA(K, K, lda, stride_A, batch_count);
+    device_strided_batch_matrix<T> dB(M, N, ldb, stride_B, batch_count);
+    device_strided_batch_matrix<T> dC
+        = (inplace) ? device_strided_batch_matrix<T>(1, 1, 1, 1, 1)
+                    : device_strided_batch_matrix<T>(M, N, ldc, stride_C, batch_count);
     device_vector<T> d_alpha(1);
 
-    device_vector<T>* dOut = inplace ? &dB : &dC;
+    // Check device memory allocation
+    CHECK_DEVICE_ALLOCATION(dA.memcheck());
+    CHECK_DEVICE_ALLOCATION(dB.memcheck());
+    CHECK_DEVICE_ALLOCATION(dC.memcheck());
+    CHECK_DEVICE_ALLOCATION(d_alpha.memcheck());
+
+    device_strided_batch_matrix<T>* dOut = inplace ? &dB : &dC;
 
     double gpu_time_used, hipblas_error_host, hipblas_error_device;
 
     hipblasLocalHandle handle(arg);
 
     // Initial Data on CPU
+    hipblas_init_matrix(hA, arg, hipblas_client_alpha_sets_nan, hipblas_triangular_matrix, true);
     hipblas_init_matrix(
-        hA, arg, K, K, lda, stride_A, batch_count, hipblas_client_alpha_sets_nan, true);
-    hipblas_init_matrix(
-        hB, arg, M, N, ldb, stride_B, batch_count, hipblas_client_alpha_sets_nan, false, true);
+        hB, arg, hipblas_client_alpha_sets_nan, hipblas_general_matrix, false, true);
+
     if(!inplace)
         hipblas_init_matrix(
-            hC, arg, M, N, ldc, stride_C, batch_count, hipblas_client_alpha_sets_nan, false, true);
+            hC, arg, hipblas_client_alpha_sets_nan, hipblas_general_matrix, false, true);
 
-    hOut_host   = inplace ? hB : hC;
-    hOut_device = hOut_host;
-    hOut_gold   = hOut_host;
+    hOut_host.copy_from(inplace ? hB : hC);
+    hOut_device.copy_from(hOut_host);
+    hOut_cpu.copy_from(hOut_host);
 
     // copy data from CPU to device
-    CHECK_HIP_ERROR(hipMemcpy(dA, hA, sizeof(T) * A_size, hipMemcpyHostToDevice));
-    CHECK_HIP_ERROR(hipMemcpy(dB, hB, sizeof(T) * B_size, hipMemcpyHostToDevice));
-    CHECK_HIP_ERROR(hipMemcpy(dC, hC, sizeof(T) * C_size, hipMemcpyHostToDevice));
+    CHECK_HIP_ERROR(dA.transfer_from(hA));
+    CHECK_HIP_ERROR(dB.transfer_from(hB));
     CHECK_HIP_ERROR(hipMemcpy(d_alpha, &h_alpha, sizeof(T), hipMemcpyHostToDevice));
 
     if(arg.unit_check || arg.norm_check)
@@ -504,9 +519,8 @@ void testing_trmm_strided_batched(const Arguments& arg)
                                                         stride_out,
                                                         batch_count));
 
-        CHECK_HIP_ERROR(hipMemcpy(hOut_host, *dOut, sizeof(T) * out_size, hipMemcpyDeviceToHost));
-        CHECK_HIP_ERROR(hipMemcpy(dB, hB, sizeof(T) * B_size, hipMemcpyHostToDevice));
-        CHECK_HIP_ERROR(hipMemcpy(dC, hC, sizeof(T) * C_size, hipMemcpyHostToDevice));
+        CHECK_HIP_ERROR(hOut_host.transfer_from(*dOut));
+        CHECK_HIP_ERROR(dB.transfer_from(hB));
 
         CHECK_HIPBLAS_ERROR(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_DEVICE));
         CHECK_HIPBLAS_ERROR(hipblasTrmmStridedBatchedFn(handle,
@@ -528,42 +542,32 @@ void testing_trmm_strided_batched(const Arguments& arg)
                                                         stride_out,
                                                         batch_count));
 
-        CHECK_HIP_ERROR(hipMemcpy(hOut_device, *dOut, sizeof(T) * out_size, hipMemcpyDeviceToHost));
+        CHECK_HIP_ERROR(hOut_device.transfer_from(*dOut));
 
         /* =====================================================================
            CPU BLAS
         =================================================================== */
         for(int b = 0; b < batch_count; b++)
         {
-            ref_trmm<T>(side,
-                        uplo,
-                        transA,
-                        diag,
-                        M,
-                        N,
-                        h_alpha,
-                        hA.data() + b * stride_A,
-                        lda,
-                        hB.data() + b * stride_B,
-                        ldb);
+            ref_trmm<T>(side, uplo, transA, diag, M, N, h_alpha, hA[b], lda, hB[b], ldb);
         }
 
         copy_matrix_with_different_leading_dimensions(
-            hB, hOut_gold, M, N, ldb, ldOut, stride_B, stride_out, batch_count);
+            hB, hOut_cpu, M, N, ldb, ldOut, stride_B, stride_out, batch_count);
 
         // enable unit check, notice unit check is not invasive, but norm check is,
         // unit check and norm check can not be interchanged their order
         if(arg.unit_check)
         {
-            unit_check_general<T>(M, N, batch_count, ldOut, stride_out, hOut_gold, hOut_host);
-            unit_check_general<T>(M, N, batch_count, ldOut, stride_out, hOut_gold, hOut_device);
+            unit_check_general<T>(M, N, batch_count, ldOut, stride_out, hOut_cpu, hOut_host);
+            unit_check_general<T>(M, N, batch_count, ldOut, stride_out, hOut_cpu, hOut_device);
         }
         if(arg.norm_check)
         {
             hipblas_error_host = norm_check_general<T>(
-                'F', M, N, ldOut, stride_out, hOut_gold, hOut_host, batch_count);
+                'F', M, N, ldOut, stride_out, hOut_cpu, hOut_host, batch_count);
             hipblas_error_device = norm_check_general<T>(
-                'F', M, N, ldOut, stride_out, hOut_gold, hOut_device, batch_count);
+                'F', M, N, ldOut, stride_out, hOut_cpu, hOut_device, batch_count);
         }
     }
 

@@ -1,5 +1,5 @@
 /* ************************************************************************
- * Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -66,15 +66,16 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
     hipblasSideMode_t side        = HIPBLAS_SIDE_LEFT;
     hipblasFillMode_t uplo        = HIPBLAS_FILL_MODE_LOWER;
 
-    int64_t colsA = side == HIPBLAS_SIDE_LEFT ? N : M;
+    size_t dim_A = (side == HIPBLAS_SIDE_LEFT ? N : M);
 
-    hipblasStride strideA = colsA * lda;
-    hipblasStride strideB = N * ldb;
-    hipblasStride strideC = N * ldc;
+    hipblasStride stride_A = dim_A * lda;
+    hipblasStride stride_B = N * ldb;
+    hipblasStride stride_C = N * ldc;
 
-    device_vector<T> dA(strideA * batch_count);
-    device_vector<T> dB(strideB * batch_count);
-    device_vector<T> dC(strideC * batch_count);
+    // Allocate device memory
+    device_strided_batch_matrix<T> dA(dim_A, dim_A, lda, stride_A, batch_count);
+    device_strided_batch_matrix<T> dB(M, N, ldb, stride_B, batch_count);
+    device_strided_batch_matrix<T> dC(M, N, ldc, stride_C, batch_count);
 
     device_vector<T> d_alpha(1), d_beta(1), d_one(1), d_zero(1);
     const T          h_alpha(1), h_beta(2), h_one(1), h_zero(0);
@@ -108,14 +109,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           beta,
                                                           dC,
                                                           ldc,
-                                                          strideC,
+                                                          stride_C,
                                                           batch_count),
                               HIPBLAS_STATUS_NOT_INITIALIZED);
 
@@ -127,14 +128,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           beta,
                                                           dC,
                                                           ldc,
-                                                          strideC,
+                                                          stride_C,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
         EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -145,14 +146,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           beta,
                                                           dC,
                                                           ldc,
-                                                          strideC,
+                                                          stride_C,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_ENUM);
         EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -163,14 +164,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           beta,
                                                           dC,
                                                           ldc,
-                                                          strideC,
+                                                          stride_C,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_VALUE);
         EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -181,14 +182,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                           alpha,
                                                           dA,
                                                           lda,
-                                                          strideA,
+                                                          stride_A,
                                                           dB,
                                                           ldb,
-                                                          strideB,
+                                                          stride_B,
                                                           beta,
                                                           dC,
                                                           ldc,
-                                                          strideC,
+                                                          stride_C,
                                                           batch_count),
                               HIPBLAS_STATUS_INVALID_ENUM);
 
@@ -202,14 +203,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                               nullptr,
                                                               dA,
                                                               lda,
-                                                              strideA,
+                                                              stride_A,
                                                               dB,
                                                               ldb,
-                                                              strideB,
+                                                              stride_B,
                                                               beta,
                                                               dC,
                                                               ldc,
-                                                              strideC,
+                                                              stride_C,
                                                               batch_count),
                                   HIPBLAS_STATUS_INVALID_VALUE);
             EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -220,14 +221,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                               alpha,
                                                               dA,
                                                               lda,
-                                                              strideA,
+                                                              stride_A,
                                                               dB,
                                                               ldb,
-                                                              strideB,
+                                                              stride_B,
                                                               nullptr,
                                                               dC,
                                                               ldc,
-                                                              strideC,
+                                                              stride_C,
                                                               batch_count),
                                   HIPBLAS_STATUS_INVALID_VALUE);
 
@@ -241,14 +242,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                                   alpha,
                                                                   nullptr,
                                                                   lda,
-                                                                  strideA,
+                                                                  stride_A,
                                                                   dB,
                                                                   ldb,
-                                                                  strideB,
+                                                                  stride_B,
                                                                   beta,
                                                                   dC,
                                                                   ldc,
-                                                                  strideC,
+                                                                  stride_C,
                                                                   batch_count),
                                       HIPBLAS_STATUS_INVALID_VALUE);
                 EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -259,14 +260,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                                   alpha,
                                                                   dA,
                                                                   lda,
-                                                                  strideA,
+                                                                  stride_A,
                                                                   nullptr,
                                                                   ldb,
-                                                                  strideB,
+                                                                  stride_B,
                                                                   beta,
                                                                   dC,
                                                                   ldc,
-                                                                  strideC,
+                                                                  stride_C,
                                                                   batch_count),
                                       HIPBLAS_STATUS_INVALID_VALUE);
                 EXPECT_HIPBLAS_STATUS(hipblasHemmStridedBatchedFn(handle,
@@ -277,14 +278,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                                   alpha,
                                                                   dA,
                                                                   lda,
-                                                                  strideA,
+                                                                  stride_A,
                                                                   dB,
                                                                   ldb,
-                                                                  strideB,
+                                                                  stride_B,
                                                                   beta,
                                                                   nullptr,
                                                                   ldc,
-                                                                  strideC,
+                                                                  stride_C,
                                                                   batch_count),
                                       HIPBLAS_STATUS_INVALID_VALUE);
             }
@@ -298,14 +299,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                             zero,
                                                             nullptr,
                                                             lda,
-                                                            strideA,
+                                                            stride_A,
                                                             nullptr,
                                                             ldb,
-                                                            strideB,
+                                                            stride_B,
                                                             one,
                                                             nullptr,
                                                             ldc,
-                                                            strideC,
+                                                            stride_C,
                                                             batch_count));
         }
 
@@ -318,14 +319,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                         nullptr,
                                                         nullptr,
                                                         lda,
-                                                        strideA,
+                                                        stride_A,
                                                         nullptr,
                                                         ldb,
-                                                        strideB,
+                                                        stride_B,
                                                         nullptr,
                                                         nullptr,
                                                         ldc,
-                                                        strideC,
+                                                        stride_C,
                                                         batch_count));
         CHECK_HIPBLAS_ERROR(hipblasHemmStridedBatchedFn(handle,
                                                         side,
@@ -335,14 +336,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                         nullptr,
                                                         nullptr,
                                                         lda,
-                                                        strideA,
+                                                        stride_A,
                                                         nullptr,
                                                         ldb,
-                                                        strideB,
+                                                        stride_B,
                                                         nullptr,
                                                         nullptr,
                                                         ldc,
-                                                        strideC,
+                                                        stride_C,
                                                         batch_count));
         CHECK_HIPBLAS_ERROR(hipblasHemmStridedBatchedFn(handle,
                                                         side,
@@ -352,14 +353,14 @@ void testing_hemm_strided_batched_bad_arg(const Arguments& arg)
                                                         nullptr,
                                                         nullptr,
                                                         lda,
-                                                        strideA,
+                                                        stride_A,
                                                         nullptr,
                                                         ldb,
-                                                        strideB,
+                                                        stride_B,
                                                         nullptr,
                                                         nullptr,
                                                         ldc,
-                                                        strideC,
+                                                        stride_C,
                                                         0));
     }
 }
@@ -381,36 +382,47 @@ void testing_hemm_strided_batched(const Arguments& arg)
     double            stride_scale = arg.stride_scale;
     int               batch_count  = arg.batch_count;
 
-    size_t rows = (side == HIPBLAS_SIDE_LEFT ? N : M);
-    int    K    = (side == HIPBLAS_SIDE_LEFT ? M : N);
+    size_t dim_A = (side == HIPBLAS_SIDE_LEFT ? N : M);
 
     // argument sanity check, quick return if input parameters are invalid before allocating invalid
     // memory
-    if(M < 0 || N < 0 || lda < K || ldb < M || ldc < M || batch_count < 0)
+    if(M < 0 || N < 0 || lda < dim_A || ldb < M || ldc < M || batch_count < 0)
     {
         return;
     }
 
-    hipblasStride stride_A = size_t(lda) * K * stride_scale;
-    hipblasStride stride_B = size_t(ldb) * N * stride_scale;
-    hipblasStride stride_C = size_t(ldc) * N * stride_scale;
+    hipblasStride stride_A = lda * dim_A * stride_scale;
+    hipblasStride stride_B = ldb * N * stride_scale;
+    hipblasStride stride_C = ldc * N * stride_scale;
 
-    size_t A_size = size_t(stride_A) * batch_count;
-    size_t B_size = size_t(stride_B) * batch_count;
-    size_t C_size = size_t(stride_C) * batch_count;
+    // Naming: `h` is in CPU (host) memory(eg hA), `d` is in GPU (device) memory (eg dA).
+    // Allocate host memory
+    host_strided_batch_matrix<T> hA(dim_A, dim_A, lda, stride_A, batch_count);
+    host_strided_batch_matrix<T> hB(M, N, ldb, stride_B, batch_count);
+    host_strided_batch_matrix<T> hC_host(M, N, ldc, stride_C, batch_count);
+    host_strided_batch_matrix<T> hC_device(M, N, ldc, stride_C, batch_count);
+    host_strided_batch_matrix<T> hC_cpu(M, N, ldc, stride_C, batch_count);
 
-    // Naming: dK is in GPU (device) memory. hK is in CPU (host) memory
-    host_vector<T> hA(A_size);
-    host_vector<T> hB(B_size);
-    host_vector<T> hC_host(C_size);
-    host_vector<T> hC_device(C_size);
-    host_vector<T> hC_gold(C_size);
+    // Check host memory allocation
+    CHECK_HIP_ERROR(hA.memcheck());
+    CHECK_HIP_ERROR(hB.memcheck());
+    CHECK_HIP_ERROR(hC_host.memcheck());
+    CHECK_HIP_ERROR(hC_device.memcheck());
+    CHECK_HIP_ERROR(hC_cpu.memcheck());
 
-    device_vector<T> dA(A_size);
-    device_vector<T> dB(B_size);
-    device_vector<T> dC(C_size);
-    device_vector<T> d_alpha(1);
-    device_vector<T> d_beta(1);
+    // Allocate device memory
+    device_strided_batch_matrix<T> dA(dim_A, dim_A, lda, stride_A, batch_count);
+    device_strided_batch_matrix<T> dB(M, N, ldb, stride_B, batch_count);
+    device_strided_batch_matrix<T> dC(M, N, ldc, stride_C, batch_count);
+    device_vector<T>               d_alpha(1);
+    device_vector<T>               d_beta(1);
+
+    // Check device memory allocation
+    CHECK_DEVICE_ALLOCATION(dA.memcheck());
+    CHECK_DEVICE_ALLOCATION(dB.memcheck());
+    CHECK_DEVICE_ALLOCATION(dC.memcheck());
+    CHECK_DEVICE_ALLOCATION(d_alpha.memcheck());
+    CHECK_DEVICE_ALLOCATION(d_beta.memcheck());
 
     double             gpu_time_used, hipblas_error_host, hipblas_error_device;
     hipblasLocalHandle handle(arg);
@@ -419,19 +431,18 @@ void testing_hemm_strided_batched(const Arguments& arg)
     T h_beta  = arg.get_beta<T>();
 
     // Initial Data on CPU
+    hipblas_init_matrix(hA, arg, hipblas_client_never_set_nan, hipblas_hermitian_matrix, true);
     hipblas_init_matrix(
-        hA, arg, rows, K, lda, stride_A, batch_count, hipblas_client_never_set_nan, true);
-    hipblas_init_matrix(
-        hB, arg, M, N, ldb, stride_B, batch_count, hipblas_client_alpha_sets_nan, false, true);
-    hipblas_init_matrix(
-        hC_host, arg, M, N, ldc, stride_C, batch_count, hipblas_client_beta_sets_nan);
-    hC_gold   = hC_host;
-    hC_device = hC_host;
+        hB, arg, hipblas_client_alpha_sets_nan, hipblas_general_matrix, false, true);
+    hipblas_init_matrix(hC_host, arg, hipblas_client_beta_sets_nan, hipblas_general_matrix);
+
+    hC_device.copy_from(hC_host);
+    hC_cpu.copy_from(hC_host);
 
     // copy data from CPU to device
-    CHECK_HIP_ERROR(hipMemcpy(dA, hA, sizeof(T) * A_size, hipMemcpyHostToDevice));
-    CHECK_HIP_ERROR(hipMemcpy(dB, hB, sizeof(T) * B_size, hipMemcpyHostToDevice));
-    CHECK_HIP_ERROR(hipMemcpy(dC, hC_host, sizeof(T) * C_size, hipMemcpyHostToDevice));
+    CHECK_HIP_ERROR(dA.transfer_from(hA));
+    CHECK_HIP_ERROR(dB.transfer_from(hB));
+    CHECK_HIP_ERROR(dC.transfer_from(hC_host));
     CHECK_HIP_ERROR(hipMemcpy(d_alpha, &h_alpha, sizeof(T), hipMemcpyHostToDevice));
     CHECK_HIP_ERROR(hipMemcpy(d_beta, &h_beta, sizeof(T), hipMemcpyHostToDevice));
 
@@ -460,9 +471,9 @@ void testing_hemm_strided_batched(const Arguments& arg)
                                                         batch_count));
 
         // copy output from device to CPU
-        CHECK_HIP_ERROR(hipMemcpy(hC_host, dC, sizeof(T) * C_size, hipMemcpyDeviceToHost));
+        CHECK_HIP_ERROR(hC_host.transfer_from(dC));
 
-        CHECK_HIP_ERROR(hipMemcpy(dC, hC_device, sizeof(T) * C_size, hipMemcpyHostToDevice));
+        CHECK_HIP_ERROR(dC.transfer_from(hC_device));
         CHECK_HIPBLAS_ERROR(hipblasSetPointerMode(handle, HIPBLAS_POINTER_MODE_DEVICE));
         CHECK_HIPBLAS_ERROR(hipblasHemmStridedBatchedFn(handle,
                                                         side,
@@ -482,41 +493,30 @@ void testing_hemm_strided_batched(const Arguments& arg)
                                                         stride_C,
                                                         batch_count));
 
-        CHECK_HIP_ERROR(hipMemcpy(hC_device, dC, sizeof(T) * C_size, hipMemcpyDeviceToHost));
+        CHECK_HIP_ERROR(hC_device.transfer_from(dC));
 
         /* =====================================================================
            CPU BLAS
         =================================================================== */
         for(int b = 0; b < batch_count; b++)
         {
-            ref_hemm<T>(side,
-                        uplo,
-                        M,
-                        N,
-                        h_alpha,
-                        hA.data() + b * stride_A,
-                        lda,
-                        hB.data() + b * stride_B,
-                        ldb,
-                        h_beta,
-                        hC_gold.data() + b * stride_C,
-                        ldc);
+            ref_hemm<T>(side, uplo, M, N, h_alpha, hA[b], lda, hB[b], ldb, h_beta, hC_cpu[b], ldc);
         }
 
         // enable unit check, notice unit check is not invasive, but norm check is,
         // unit check and norm check can not be interchanged their order
         if(arg.unit_check)
         {
-            unit_check_general<T>(M, N, batch_count, ldc, stride_C, hC_gold, hC_host);
-            unit_check_general<T>(M, N, batch_count, ldc, stride_C, hC_gold, hC_device);
+            unit_check_general<T>(M, N, batch_count, ldc, stride_C, hC_cpu, hC_host);
+            unit_check_general<T>(M, N, batch_count, ldc, stride_C, hC_cpu, hC_device);
         }
 
         if(arg.norm_check)
         {
             hipblas_error_host
-                = norm_check_general<T>('F', M, N, ldc, stride_C, hC_gold, hC_host, batch_count);
+                = norm_check_general<T>('F', M, N, ldc, stride_C, hC_cpu, hC_host, batch_count);
             hipblas_error_device
-                = norm_check_general<T>('F', M, N, ldc, stride_C, hC_gold, hC_device, batch_count);
+                = norm_check_general<T>('F', M, N, ldc, stride_C, hC_cpu, hC_device, batch_count);
         }
     }
 
@@ -555,8 +555,8 @@ void testing_hemm_strided_batched(const Arguments& arg)
         hipblasHemmStridedBatchedModel{}.log_args<T>(std::cout,
                                                      arg,
                                                      gpu_time_used,
-                                                     hemm_gflop_count<T>(M, N, K),
-                                                     hemm_gbyte_count<T>(M, N, K),
+                                                     hemm_gflop_count<T>(M, N, dim_A),
+                                                     hemm_gbyte_count<T>(M, N, dim_A),
                                                      hipblas_error_host,
                                                      hipblas_error_device);
     }
